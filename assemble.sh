@@ -2,6 +2,7 @@
 title=slimesaga
 cd src
 rgbasm -Werror -Weverything -Hl -o $title.o $title.asm
+rgbgfx -o gfx/tiles.bin gfx/tiles.png
 cd ..
 
 # Link everything
