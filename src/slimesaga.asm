@@ -1,5 +1,6 @@
 include "inc/hardware.inc"
 
+def HEIGHT_T equ 9
 def WIDTH_T equ 10
 def map_w equ _HRAM
 
@@ -42,64 +43,59 @@ start:
 	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_BG8000
 	ld [rLCDC], a
 
-.vblank
+main:
+.vblank:
 	ld a, [rLY]
 	cp SCRN_Y
 	 jr nz, .vblank
 
-main:
+	ld a, P1F_GET_DPAD	; prepare to read DPAD from key port
+	ld [rP1], a			; send request to read DPAD status
+	ldh a, [rP1]		; wait state
+	ldh a, [rP1]		; DPAD status in a
+
+	swap a
+	push af
+		and PADF_UP			;
+		 call z, move_up
+	pop af
+	push af
+		and PADF_DOWN		;
+		 call z, move_down
+	pop af
+	push af
+		and PADF_LEFT		;
+		 call z, move_left
+	pop af
+	push af
+		and PADF_RIGHT		;
+		 call z, move_right
+	pop af
+
+	ld a, P1F_GET_NONE	; disable key polling
+	ld [rP1], a			;
 	jr main
 
+; ### CODE ###
 
-; Loads tile map into VRAM
-load_tilemap:
-	ld de, tilemap
-	ld hl, _SCRN0
-	ld c, 9
-	ld a, [de]
-	sub a, WIDTH_T
-	ldh [map_w], a
-.row:
-	ld b, WIDTH_T	; 10 16x16 tiles wide (160 pixels)
-.draw_sprite:
-	inc de			; check next entry in tilemap
-	ld a, [de]		; tile id
-	; cp $FF			; check if end of map
-	 ; ret z			; quit if end of map
-	add a, a		; x2
-	push hl			; hl = SCRN
-	push bc			; bc = loop counters
-		ld [hl+], a	; first tile into SCRN0 (16x16 tiles have 4 8x8 tiles)
-		inc a		; next tile id
-		ld [hl], a	; byte 2
-		ld bc, $1F	; move down to next row in tilemap (32 tiles wide)
-		add hl, bc
-		add a, $F	; move down to next row in tileset
-		ld [hl+], a	; byte 3
-		inc a
-		ld [hl], a	; byte 4
-	pop bc
-	pop hl
-	inc hl			; shift to next 16x16 tile in tilemap
-	inc hl
-	dec b			; check if full row has been drawn
-	 jr nz, .draw_sprite
-	dec c			; check if all rows have been drawn
-	 ret z			; if so, exit
-	push bc
-		ld c, 12 + 32
-		add hl, bc
-		push hl
-			push de
-			pop hl
-			ldh a, [map_w]
-			ld c, a
-			add hl, bc
-			ld e, l
-			ld d, h
-		pop hl
-	pop bc
-	jr .row
+move_up:
+	ld hl, rSCY
+	dec [hl]
+	ret
+move_right:
+	ld hl, rSCX
+	inc [hl]
+	ret
+move_down:
+	ld hl, rSCY
+	inc [hl]
+	ret
+move_left:
+	ld hl, rSCX
+	dec [hl]
+	ret
+
+include "tilemap.asm"
 
 ; ### DATA ###
 
@@ -118,4 +114,5 @@ db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2
 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2
 db 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 1, 2
 db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2
+db 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2
 db $FF
