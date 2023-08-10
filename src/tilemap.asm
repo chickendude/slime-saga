@@ -12,7 +12,8 @@ load_tilemap:
 .draw_tile:
 	inc de				; check next entry in tilemap
 	ld a, [de]			; tile id
-	add a, a			; x2 - our tiles are 16x16
+	add a, a			; x2
+	add a, a			; x4 - our tiles are 16x16
 	push hl				; hl = SCRN
 	push bc				; bc = loop counters
 		ld [hl+], a		; first tile into SCRN0 (16x16 tiles have 4 8x8 tiles)
@@ -20,7 +21,7 @@ load_tilemap:
 		ld [hl], a		; byte 2
 		ld bc, $1F		; move down to next row in tilemap (32 tiles wide)
 		add hl, bc		;
-		add a, $F		; move down to next row in tileset
+		inc a			; move down to next row in tileset
 		ld [hl+], a		; byte 3
 		inc a			;
 		ld [hl], a		; byte 4
@@ -69,10 +70,11 @@ draw_column:
 	push bc				; save row counter (c)
 		ld a, [de]		; a = tilemap tile
 		add a, a		; x2
+		add a, a		; x2
 		ld [hl+], a		; save BYTE 1
 		inc a			; 
 		ld [hl], a		; BYTE 2
-		add a, $F		; currently, tiles are stored in 2D, so we need to shift down a row
+		inc a			; 
 		ld c, 31		; bc = 31 (shift down a row in SCRN0)
 		add hl, bc		; go to next row in SCRN0
 		ld [hl+], a		; BYTE 3
@@ -81,7 +83,7 @@ draw_column:
 		add hl,bc
 		push hl
 			ld l, e		; ld hl, de = position in tilemap
-			ld h, d		;
+			ld h, d		; .. 
 			ld a, [map_w]	;
 			ld c, a		; bc = map width
 			add hl, bc	; go to next row in tilemap
