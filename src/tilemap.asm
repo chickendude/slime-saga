@@ -50,47 +50,49 @@ load_tilemap:
 
 ; a = player_x
 draw_column:
-	ld bc, HEIGHT_T + 1	; c = number of rows to draw
-	rra					; /2
-	rra					; /4
-	rra					; /8
-	rra					; /16
-	and %00011111		; clear out shifted bits
-	ld e, a				; de = x position
-	ld d, b				; (b set to 0 above)
-	ld hl, tilemap + WIDTH_T + 1	; right side of tilemap
-	add hl, de			; first tile in column
-	; TODO: add y position
-	push hl
-		ld hl, _SCRN0 + 20
-		add hl, de
-		add hl, de
-	pop de				; hl = VRAM tilemap, de = local tilemap
+	swap a				; /16 (swap lower and upper nibbles), like rrca 4 times
+	and %00001111		; clear out upper nibble
+	ld c, a				; save a/player X tile
+; set de to start of tilemap data
+	ld e, low(tilemap + WIDTH_T + 1)	; de = right edge of tilemap + player X tile
+	add a, e			;
+	ld e, a				;
+	adc a, high(tilemap + WIDTH_T + 1)
+	sub e				;
+	ld d, a				; de = a + tilemap + WIDTH_T + 1
+; set hl to start of SCRN0 data
+	ld b, 0
+	ld hl, _SCRN0 + 20
+	add hl, bc
+	add hl, bc
+	ld c, HEIGHT_T + 1	; c = number of rows to draw
+; hl = VRAM tilemap, de = local tilemap, c = number of rows left to draw
 .loop:
-	push bc				; save row counter (c)
-		ld a, [de]		; a = tilemap tile
-		add a, a		; x2
-		add a, a		; x2
-		ld [hl+], a		; save BYTE 1
-		inc a			; 
-		ld [hl], a		; BYTE 2
-		inc a			; 
-		ld c, 31		; bc = 31 (shift down a row in SCRN0)
-		add hl, bc		; go to next row in SCRN0
-		ld [hl+], a		; BYTE 3
-		inc a			;
-		ld [hl], a		; BYTE 4
-		add hl,bc
-		push hl
-			ld l, e		; ld hl, de = position in tilemap
-			ld h, d		; .. 
-			ld a, [map_w]	;
-			ld c, a		; bc = map width
-			add hl, bc	; go to next row in tilemap
-			ld e, l		; ld de, hl
-			ld d, h		; .. save result back to de (new position in tilemap)
-		pop hl
-	pop bc
+	ld a, [de]			; a = tilemap tile
+	add a, a			; x2
+	add a, a			; x4
+	ld [hl+], a			; set BYTE 1
+	inc a				; 
+	ld [hl-], a			; BYTE 2
+	set 5, l			; + 32, even to odd row
+	inc a				; 
+	ld [hl+], a			; BYTE 3
+	inc a				;
+	ld [hl], a			; BYTE 4
+; shift SCRN0 down a row
+	ld a, 31			; add hl, 31: shift down another row
+	add a, l			;
+	ld l, a				; l = l + 31
+	adc a, h			; add carry over from l to h
+	sub l				; subtract l (because we only wanted to add the carry)
+	ld h, a				; hl = hl + 31, SCRN0 shifted down a row
+; shift de (tilemap) down a row
+	ld a, [map_w]		; add hl, 31: shift down another row
+	add a, e			;
+	ld e, a				; l = l + 31
+	adc a, d			; add carry over from l to h
+	sub e				; subtract l (because we only wanted to add the carry)
+	ld d, a				; hl = hl + 31, SCRN0 shifted down a row
 	dec c
 	 jr nz, .loop
 	ret
@@ -98,7 +100,7 @@ draw_column:
 
 move_up:
 	;ld hl, rSCY
-	ld hl, player_y
+	ld hl, map_y
 	ld a, [hl]
 	or a
 	 ret z
@@ -106,7 +108,7 @@ move_up:
 	ret
 move_left:
 	;ld hl, rSCX
-	ld hl, player_x
+	ld hl, map_x
 	ld a, [hl]
 	or a
 	 ret z
@@ -114,7 +116,7 @@ move_left:
 	ret
 move_right:
 	;ld hl, rSCX
-	ld hl, player_x
+	ld hl, map_x
 	ld a, [hl]			; a = player's x position
 	inc a				; check x position to the right one pixel
 	rra					; /2 tiles are 16 pixels wide
@@ -135,7 +137,7 @@ move_right:
 	jr draw_column		; draw a new column
 move_down:
 	;ld hl, rSCY
-	ld hl, player_y
+	ld hl, map_y
 	inc [hl]
 	ret
 

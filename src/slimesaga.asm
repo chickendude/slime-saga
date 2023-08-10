@@ -1,3 +1,6 @@
+; Sorry for the tabs, old habit.
+; -chickendude, 2023
+
 include "inc/hardware.inc"
 
 def HEIGHT_T	equ 9
@@ -12,10 +15,10 @@ section "variables", wram0[_RAM]
 START_OF_VARIABLES:
 map_w: DS 1
 map_h: DS 1
-map_x: DS 2
-map_y: DS 2
-player_x: DS 2
-player_y: DS 2
+map_x: DS 2		; TODO: 12.4 fixed point
+map_y: DS 2		; TODO: 12.4 fixed point
+player_x: DS 2	; TODO: 12.4 fixed point
+player_y: DS 2	; TODO: 12.4 fixed point
 END_OF_VARIABLES:
 
 
@@ -74,12 +77,12 @@ main:
 	cp SCRN_Y
 	 jr nz, .vblank
 	
-	call update_camera	; [camera.asm]
+	call update_camera		; [camera.asm]
 
-	ld a, P1F_GET_DPAD	; prepare to read DPAD from key port
-	ld [rP1], a			; send request to read DPAD status
-	ldh a, [rP1]		; wait state
-	ldh a, [rP1]		; DPAD status in a
+	ld a, P1F_GET_DPAD		; prepare to read DPAD from key port
+	ld [rP1], a				; send request to read DPAD status
+	ldh a, [rP1]			; wait state
+	ldh a, [rP1]			; DPAD status in a
 
 	swap a
 	push af
@@ -99,8 +102,8 @@ main:
 		 call z, move_right	; [tilemap.asm]
 	pop af
 
-	ld a, P1F_GET_NONE	; disable key polling
-	ld [rP1], a			;
+	ld a, P1F_GET_NONE		; disable key polling
+	ld [rP1], a				;
 	jr main
 
 ; ### CODE ###
@@ -115,15 +118,21 @@ incbin "gfx/tiles.bin"
 tile_end:
 
 tilemap:
-db 13
-db 0, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2
-db 2, 0, 0, 2, 2, 0, 0, 0, 1, 2, 0, 2, 2
-db 0, 0, 0, 2, 2, 0, 0, 0, 2, 2, 0, 0, 0
-db 0, 0, 0, 2, 0, 0, 0, 2, 2, 2, 0, 0, 2
-db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2
-db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2
-db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2
-db 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 2, 0, 2
-db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2
-db 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2
+db 16
+db 0, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2
+db 2, 0, 0, 2, 2, 0, 0, 0, 1, 2, 0, 2, 2, 2, 2, 2
+db 0, 0, 0, 2, 2, 0, 0, 0, 2, 2, 0, 0, 0, 2, 2, 2
+db 0, 0, 0, 2, 0, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 2
+db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2, 2, 2
+db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2, 2, 2
+db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2, 2, 2
+db 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 2, 0, 2, 2, 2, 2
+db 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 2, 2, 1
+db 2, 0, 0, 0, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2
+db 2, 0, 0, 0, 2, 2, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2
+db 2, 0, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2
+db 2, 0, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2
+db 2, 0, 0, 2, 0, 0, 0, 2, 0, 2, 2, 2, 2, 2, 2, 2
+db 2, 0, 2, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2
+db 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2
 db $FF
