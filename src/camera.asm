@@ -2,6 +2,10 @@ update_camera:
 	ld hl, map_x
 	;ld de, map_x
 	ld a, [hl+]
+	xor [hl]
+	and $F0
+	xor [hl]
+	swap a
 	;ld [de], a
 	ld [rSCX], a
 	inc hl

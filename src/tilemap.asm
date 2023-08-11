@@ -48,23 +48,22 @@ load_tilemap:
 	pop bc				; bc = row + column counters
 	jr .row
 
-; a = player_x
+; a = map X tile
 draw_column:
-	swap a				; /16 (swap lower and upper nibbles), like rrca 4 times
-	and %00001111		; clear out upper nibble
-	ld c, a				; save a/player X tile
+	ld c, a				; save a/map X tile
 ; set de to start of tilemap data
-	ld e, low(tilemap + WIDTH_T + 1)	; de = right edge of tilemap + player X tile
-	add a, e			;
+	ld e, low(tilemap + 1)	; de = right edge of tilemap + player X tile
+	add a, e			; add map X to de (start of tilemap data)
 	ld e, a				;
-	adc a, high(tilemap + WIDTH_T + 1)
+	adc a, high(tilemap + 1)
 	sub e				;
 	ld d, a				; de = a + tilemap + WIDTH_T + 1
 ; set hl to start of SCRN0 data
-	ld b, 0
-	ld hl, _SCRN0 + 20
-	add hl, bc
-	add hl, bc
+	ld a, c				; a = map X tile
+	and $F				; SCRN0 can only fit 16 (16x16) tiles, after that it wraps
+	add a, a			; x2
+	ld h, high(_SCRN0)	; hl = SCRN0 + X offset
+	ld l, a				; SCRN0 = $9800, so no need to do any calculations here
 	ld c, HEIGHT_T + 1	; c = number of rows to draw
 ; hl = VRAM tilemap, de = local tilemap, c = number of rows left to draw
 .loop:
@@ -115,25 +114,20 @@ move_left:
 	dec [hl]
 	ret
 move_right:
-	;ld hl, rSCX
-	ld hl, map_x
-	ld a, [hl]			; a = player's x position
-	inc a				; check x position to the right one pixel
-	rra					; /2 tiles are 16 pixels wide
-	rra					; /4
-	rra					; /8
-	rra					; /16
-	and %00001111		; clear out possible carries
-	add a, WIDTH_T		; check right edge of the screen
-	ld b, a				;
-	ld a, [map_w]		; check if x position has reached right edge of screen
-	cp b				; if so, don't move player any further
-	 ret z				; 
-	inc [hl]			; move player right one pixel
-	ld a, [hl]			; check if we've passed a tile boundary
-	and $0F				;
-	 ret nz				; if not, we're done
-	ld a, [hl]			; a = new player x
+	ld hl, map_x + 1	; first check if we're at the edge of the map
+	ld a, [map_w]		; MSB of map_x holds the tile position
+	sub WIDTH_T			;
+	cp [hl]				; check if it equals map width
+	 ret z
+	dec hl				; LSB of map_w
+	ld a, [hl]			; increase map_x by one, making sure to carry over
+	add a, SPEED		; 
+	ld c, a
+	ld [hl+], a
+	adc a, [hl]
+	sub c
+	ld [hl], a
+	add a, WIDTH_T + 1
 	jr draw_column		; draw a new column
 move_down:
 	;ld hl, rSCY
