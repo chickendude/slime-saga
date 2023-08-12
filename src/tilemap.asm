@@ -48,7 +48,7 @@ load_tilemap:
 	pop bc				; bc = row + column counters
 	jr .row
 
-; a = map X tile
+; a = map X tile position
 draw_column:
 	ld c, a				; save a/map X tile
 ; set de to start of tilemap data
@@ -106,13 +106,20 @@ move_up:
 	dec [hl]
 	ret
 move_left:
-	;ld hl, rSCX
-	ld hl, map_x
+	ld hl, map_x		; first check if we're at the edge of the map
+	ld a, [hl+]			; pixel offset + subpixel offset
+	and $F0				; clear out subpixel offset (12.4 fixed point)
+	cp [hl]				; check if both the tile and pixel offset are zero
+	 ret z				; .. if so, can't move left any further
+	dec hl				; LSB of map_w
+	ld a, [hl]			; subtract walking speed from map_x
+	sub a, SPEED		; 
+	ld [hl+], a
+	 jr nc, .skip		; if there was no carry, no need to update the MSB of map_x
+		dec [hl]
+.skip:
 	ld a, [hl]
-	or a
-	 ret z
-	dec [hl]
-	ret
+	jr draw_column		; draw a new column
 move_right:
 	ld hl, map_x + 1	; first check if we're at the edge of the map
 	ld a, [map_w]		; MSB of map_x holds the tile position
