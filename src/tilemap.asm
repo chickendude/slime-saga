@@ -15,6 +15,7 @@ load_tilemap:
 .draw_tile:
 	inc de				; check next entry in tilemap
 	ld a, [de]			; tile id
+	add a, 32
 	add a, a			; x2
 	add a, a			; x4 - our tiles are 16x16
 	push hl				; hl = SCRN

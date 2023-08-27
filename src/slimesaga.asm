@@ -1,6 +1,9 @@
 ; Sorry for the tabs, old habit.
 ; -chickendude, 2023
 
+; Tiles drawn to 8800
+; Sprites drawn to 8000
+
 include "inc/hardware.inc"
 
 def HEIGHT_T	equ 9
@@ -40,7 +43,9 @@ start:
 	ld [rLCDC], a		; disable LCD
 
 	ld a, %11100100 	; light to dark
-	ld [rBGP], a		; update palette
+	ld [rBGP], a		; update background/tile palette
+	ld [rOBP0], a		; update sprite palette
+	ld [rOBP1], a		; update sprite palette
 
 ; set up RAM variables
 	ld hl, map_w
@@ -52,9 +57,18 @@ start:
 	bit 7, b
 	 jr z, .reset
 
+; reset OAM
+	ld c, OAM_COUNT * 4		; 40 OAM entries
+	ld hl, _OAMRAM + OAMA_Y
+	xor a				; set a to zero
+.init_oam:
+	ld [hl+], a			; set OAM Y to 0
+	dec c				; run 40 times altogether
+	 jr nz, .init_oam
+
 ; load tile data into VRAM
 	ld de, tile_data
-	ld hl, _VRAM8000
+	ld hl, _VRAM8800
 	ld b, 16
 .loop:
 	ld a, [de]
@@ -69,9 +83,10 @@ start:
 	cp e
 	 jr nz, .loop
 
+	call load_player_sprites
 	call load_tilemap
 
-	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_BG8000
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_BG8800 | LCDCF_OBJON | LCDCF_OBJ16
 	ld [rLCDC], a
 
 main:
@@ -81,6 +96,7 @@ main:
 	 jr nz, .vblank
 	
 	call update_camera		; [camera.asm]
+	call draw_player
 
 	ld a, P1F_GET_DPAD		; prepare to read DPAD from key port
 	ld [rP1], a				; send request to read DPAD status
@@ -112,6 +128,7 @@ main:
 ; ### CODE ###
 
 include "camera.asm"
+include "player.asm"
 include "tilemap.asm"
 
 ; ### DATA ###
@@ -119,6 +136,10 @@ include "tilemap.asm"
 tile_data:
 incbin "gfx/tiles.bin"
 tile_end:
+
+sprite_data:
+incbin "gfx/slime-girl.bin"
+sprite_end:
 
 tilemap:
 db 64, 64	; width, height
