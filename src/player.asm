@@ -50,30 +50,107 @@ draw_8:
 	 jr nz, .loop
 	ret
 
-
 draw_player:
-	ld hl, player_x
-	inc [hl]
-	ld a, [hl+]
-	ld [_OAMRAM], a		; x
-	ld [_OAMRAM + 4], a		; x
-
-	inc hl
-	inc [hl]
-	ld a, [hl]
-	rra
-	ld [_OAMRAM + 1], a	; y
+	ld hl, player_x			; this grabs player's x position and shifts right 4 pixels
+	ld a, [hl+]				; LSB
+	xor [hl]				; xor MSB (we will xor again after clearing the bottom 4 bits so only bottom 4 bits are kept)
+	and	$f0					; clear bottom 4 bits
+	xor [hl]				; xor MSB again to set top 4 bits back to normal, bottom 4 bits = bottom 4 bits of [hl]
+	swap a					; swap the top 4 bits of player_x with bottom 4 bits of player_x + 1
+	add a, 8				; sprites start at (8,16)
+	ld [_OAMRAM + 1], a		; x
 	add a, 8
-	ld [_OAMRAM + 5], a	; y
-; tile ids
-	rra
-	rra
-	rra
-	and %1
-	add a, a
-	add a, a
-	ld [_OAMRAM + 2], a	; tile id
-	inc a
-	inc a
-	ld [_OAMRAM + 6], a	; tile id
+	ld [_OAMRAM + 5], a		; x
+	inc hl					; hl = player_y
+	ld a, [hl+]				; same as above, xor tricks to put bottom 4 bits of player_y + 1 into a
+	xor [hl]				; .. then we swap, essentially shifting right 4 bits
+	and	$f0
+	xor [hl]
+	swap a
+	add a, 16				; sprites start at (8,16)
+	ld [_OAMRAM], a	; y
+	ld [_OAMRAM + 4], a	; y
+; sprite ids
+	ld hl, player_dir		; determine which direction the player is facing
+	ld a, [hl+]				; hl = player_frame (used to calculate which animation frame we're on)
+	add a, a				; x2 - each frame has 2 frames, taking up 4 sprites each
+	add a, a				; x4
+	add a, a				; x8
+	bit 4, [hl]				; used to alternate frames, toggles every 16 frames
+	 jr z, .update_id
+		add a, 4			; skip to second frame: 4 sprites per animation frame
+.update_id:
+	ld [_OAMRAM + 2], a		; left tile id - player sprite is 2 8x16 sprites side by side
+	add a, 2				; right side of sprite begins two 8x8 sprites after left side
+	ld [_OAMRAM + 6], a		; right tile id
 	ret
+
+
+move_left:
+	ld a, LEFT
+	ld [player_dir], a
+	ld hl, player_x		; first check if we're at the edge of the map
+	ld a, [hl+]			; pixel offset + subpixel offset
+	and $F0				; clear out subpixel offset (12.4 fixed point)
+	or [hl]				; check if both the tile and pixel offset are zero
+	 ret z				; .. if so, can't move left any further
+; update x position
+	dec hl				; LSB of player_w
+	ld a, [hl]			; subtract walking speed from player_x
+	sub a, SPEED		; 
+	ld [hl+], a
+	 ret nc				; if there was no carry, no need to update the MSB of player_x
+	dec [hl]
+	ret
+
+move_right:
+	ld a, RIGHT
+	ld [player_dir], a
+	ld hl, player_x + 1	; first check if we're at the edge of the map
+	ld a, [map_w]		; MSB of player_x holds the tile position
+	sub WIDTH_T			;
+	cp [hl]				; check if it equals map width
+	 ret z
+; update x position
+	dec hl				; LSB of player_w
+	ld a, [hl]			; increase player_x by one, making sure to carry over
+	add a, SPEED		; 
+	ld [hl+], a
+	 ret nc
+	inc [hl]
+	ret
+
+move_up:
+	xor a				; UP = 0
+	ld [player_dir], a
+	ld hl, player_y		; check if we're already at the top of the map
+	ld a, [hl+]			; a = LSB
+	and $F0				; clear out the subpixel offset
+	or [hl]				; if LSB and MSB both = 0, we're at the top
+	 ret z				; quit if so
+; update y position
+	dec hl				; hl = LSB of player_y
+	ld a, [hl]			; subtract walking speed from player_y
+	sub a, SPEED		; 
+	ld [hl+], a			; save new position
+	 ret nc				; if there was no carry, no need to update the MSB of player_y
+	dec [hl]		; otherwise, update MSB of player_y
+	ret
+
+move_down:
+	ld a, DOWN
+	ld [player_dir], a
+	ld hl, player_y + 1	; MSB of player_y (aligned tile position)
+	ld a, [map_h]		; check if at the bottom of the map
+	sub HEIGHT_T		; adjust a so that we can compare it to the map y tile position
+	cp [hl]				; player_y == player_h - num_rows
+	 ret z				; quit if we're at the bottom
+; update y position
+	dec hl				; LSB of player_y
+	ld a, [hl]			; 
+	add a, SPEED		; add speed to player_y
+	ld [hl+], a
+	 ret nc
+	inc [hl]
+	ret
+

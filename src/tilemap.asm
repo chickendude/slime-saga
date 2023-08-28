@@ -52,27 +52,6 @@ load_tilemap:
 	pop bc				; bc = row + column counters
 	jr .row
 
-; ######################
-; Multiply h and e together, store result in hl.
-; 
-; destroys:
-;	- d, b
-; output:
-;	- hl = h * e
-; ######################
-mult_he:
-	ld d, 0				; set d and l to 0
-	ld l, d				; 
-	ld b, 8				; 8 bits
-.loop:
-	add hl, hl          ; if there was a carry, we need to add e
-     jr nc, .skip
-		add hl, de
-.skip: 
-	dec b				; repeat 8 times
-     jr nz, .loop
-	ret
-
 ; a = map X tile position
 draw_column:
 	ld c, a				; save a/map X tile
@@ -148,7 +127,7 @@ draw_column:
 	 jr nz, .loop
 	ret
 
-move_left:
+map_left:
 	ld hl, map_x		; first check if we're at the edge of the map
 	ld a, [hl+]			; pixel offset + subpixel offset
 	and $F0				; clear out subpixel offset (12.4 fixed point)
@@ -165,7 +144,7 @@ move_left:
 	ld a, [hl]
 	jr draw_column		; draw a new column
 
-move_right:
+map_right:
 	ld hl, map_x + 1	; first check if we're at the edge of the map
 	ld a, [map_w]		; MSB of map_x holds the tile position
 	sub WIDTH_T			;
@@ -182,7 +161,7 @@ move_right:
 	add a, WIDTH_T
 	jr draw_column		; draw a new column
 
-move_up:
+map_up:
 	ld hl, map_y		; check if we're already at the top of the map
 	ld a, [hl+]			; a = LSB
 	and $F0				; clear out the subpixel offset
@@ -201,7 +180,7 @@ move_up:
 	;dec a				; a = row above current row
 	jr draw_row			; draw the row just offscreen above the current row
 
-move_down:
+map_down:
 	ld hl, map_y + 1	; MSB of map_y (aligned tile position)
 	ld a, [map_h]		; check if at the bottom of the map
 	sub HEIGHT_T		; adjust a so that we can compare it to the map y tile position

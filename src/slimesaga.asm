@@ -8,10 +8,15 @@ include "inc/hardware.inc"
 
 def HEIGHT_T	equ 9
 def WIDTH_T		equ 10
-def SPEED		equ 64 ; 2 pixels per frame - NOTE: must be < 1 tile
+def SPEED		equ 8 ; 1 pixel per frame - NOTE: must be < 1 tile
 
 ; high RAM: ~126 bytes from $FF80 - $FFFE
 def map_w_extra	equ _HRAM ; how much to add to move down a row in the map
+
+def UP			equ 0
+def DOWN		equ 1
+def RIGHT		equ 2
+def LEFT		equ 3
 
 
 ; RAM: ~8000 bytes from $C000 - $DFFF
@@ -20,10 +25,12 @@ START_OF_VARIABLES:
 tilemap_buffer: DS 22 * 20
 map_w: DS 1
 map_h: DS 1
-map_x: DS 2		; 12.4 fixed point
-map_y: DS 2		; 12.4 fixed point
-player_x: DS 2	; 12.4 fixed point
-player_y: DS 2	; 12.4 fixed point
+map_x: DS 2			; 12.4 fixed point
+map_y: DS 2			; 12.4 fixed point
+player_dir: DS 1	; 0 = U, 1 = D, 2 = R, 3 = L
+player_frame: DS 1	; keeps track of walking frame
+player_x: DS 2		; 12.4 fixed point
+player_y: DS 2		; 12.4 fixed point
 END_OF_VARIABLES:
 
 
@@ -103,6 +110,12 @@ main:
 	ldh a, [rP1]			; wait state
 	ldh a, [rP1]			; DPAD status in a
 
+	ld hl, player_frame
+	cp $EF
+	 jr nz, .check_keys
+		ld [hl], a
+.check_keys:
+	inc [hl]				; increase player animation counter
 	swap a
 	push af
 		and PADF_UP			;
@@ -116,10 +129,8 @@ main:
 		and PADF_LEFT		;
 		 call z, move_left	; [tilemap.asm]
 	pop af
-	push af
-		and PADF_RIGHT		;
-		 call z, move_right	; [tilemap.asm]
-	pop af
+	and PADF_RIGHT		;
+	 call z, move_right	; [tilemap.asm]
 
 	ld a, P1F_GET_NONE		; disable key polling
 	ld [rP1], a				;
@@ -128,6 +139,7 @@ main:
 ; ### CODE ###
 
 include "camera.asm"
+include "math.asm"
 include "player.asm"
 include "tilemap.asm"
 
