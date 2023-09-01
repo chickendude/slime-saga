@@ -98,6 +98,7 @@ draw_column:
 ; hl = VRAM tilemap, de = local tilemap, c = number of rows left to draw
 .loop:
 	ld a, [de]			; a = tilemap tile
+	add a, 32
 	add a, a			; x2
 	add a, a			; x4
 	ld [hl+], a			; set BYTE 1
@@ -139,8 +140,7 @@ map_left:
 	sub a, SPEED		; 
 	ld [hl+], a
 	 ret nc				; if there was no carry, no need to update the MSB of map_x
-		dec [hl]
-.skip:
+	dec [hl]
 	ld a, [hl]
 	jr draw_column		; draw a new column
 
@@ -156,7 +156,7 @@ map_right:
 	add a, SPEED		; 
 	ld [hl+], a
 	 ret nc
-		inc [hl]
+	inc [hl]
 	ld a, [hl]
 	add a, WIDTH_T
 	jr draw_column		; draw a new column
@@ -242,6 +242,7 @@ draw_row:
 	ld c, WIDTH_T + 1
 .loop:
 	ld a, [de]			; a = tilemap tile
+	add a, 32
 	add a, a			; x2
 	add a, a			; x4 (16x16 tiles = 4 8x8 tiles)
 	ld [hl+], a			; set BYTE 1

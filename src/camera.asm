@@ -21,4 +21,35 @@ update_camera:
 	xor [hl]		; ..
 	swap a			; ..
 	ld [rSCY], a	; save to y scroll register
+; check if screen needs to scroll horizontally to keep up with player
+	ld hl, map_x	; 
+	ld a, [hl+]		; a = pixel offset + .4 subpixel offset
+	ld e, a
+	ld a, 4			; middle of screen (start x + 4 tiles)
+	add a, [hl]		; a = pixel offset + .4 subpixel offset
+	ld d, a
+	ld a, [player_x + 1]
+	cp d
+	push af			; a = player x tile position - need to save these as they're destroyed
+	push de			; d = map x tile position
+		call c, map_left
+	pop de
+	pop af
+	dec a
+	cp d
+	 call nc, map_right
+; check if screen needs to scroll vertically
+	ld hl, map_y	; 
+	ld a, [hl+]		; a = pixel offset + .4 subpixel offset
+	ld e, a
+	ld d, [hl]		; a = pixel offset + .4 subpixel offset
+	ld a, 4
+	add a, d
+	ld d, a
+	ld a, [player_y + 1]
+	cp d
+	 jp c, map_up
+	dec a
+	cp d
+	 jp nc, map_down
 	ret

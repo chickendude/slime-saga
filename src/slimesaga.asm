@@ -103,7 +103,7 @@ main:
 	 jr nz, .vblank
 	
 	call update_camera		; [camera.asm]
-	call draw_player
+	call draw_player		; [player.asm]
 
 	ld a, P1F_GET_DPAD		; prepare to read DPAD from key port
 	ld [rP1], a				; send request to read DPAD status

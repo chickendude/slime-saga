@@ -50,26 +50,43 @@ draw_8:
 	 jr nz, .loop
 	ret
 
+; Determine player's X/Y position and which sprite ID (which frame) to draw
 draw_player:
-	ld hl, player_x			; this grabs player's x position and shifts right 4 pixels
-	ld a, [hl+]				; LSB
-	xor [hl]				; xor MSB (we will xor again after clearing the bottom 4 bits so only bottom 4 bits are kept)
-	and	$f0					; clear bottom 4 bits
-	xor [hl]				; xor MSB again to set top 4 bits back to normal, bottom 4 bits = bottom 4 bits of [hl]
-	swap a					; swap the top 4 bits of player_x with bottom 4 bits of player_x + 1
+; update x
+	ld hl, map_x			; subtract map x from player x to determine where
+	ld de, player_x			;
+	ld a, [de]				;
+	sub [hl]				;
+	ld c, a					; save result into c
+	inc hl					; MSB of map_x
+	inc de					; MSB of player_x
+	ld a, [de]				;
+	sbc [hl]				; subtract MSBs of map_x/player_x
+	xor c					; put LSB into top 4 bits then swap to essentially
+	and $0f					; .. shift right 4 pixels (or divide by 16)
+	xor c					;
+	swap a					;
 	add a, 8				; sprites start at (8,16)
-	ld [_OAMRAM + 1], a		; x
+	ld [_OAMRAM + OAMA_X], a	; x of left half of sprite
 	add a, 8
-	ld [_OAMRAM + 5], a		; x
-	inc hl					; hl = player_y
-	ld a, [hl+]				; same as above, xor tricks to put bottom 4 bits of player_y + 1 into a
-	xor [hl]				; .. then we swap, essentially shifting right 4 bits
-	and	$f0
-	xor [hl]
-	swap a
+	ld [_OAMRAM + 4 + OAMA_X], a	; x of right half
+; update y
+	inc hl					; map Y
+	inc de					; player Y
+	ld a, [de]				; a = lower byte of player y
+	sub [hl]				; player y - map y
+	ld c, a					; save result into c
+	inc hl					; MSB of map_y
+	inc de					; MSB of player_y
+	ld a, [de]				;
+	sbc [hl]				; subtract MSBs of map_y/player_y
+	xor c					; put LSB into top 4 bits then swap to essentially
+	and $0f					; .. shift right 4 pixels (or divide by 16)
+	xor c					;
+	swap a					;
 	add a, 16				; sprites start at (8,16)
-	ld [_OAMRAM], a	; y
-	ld [_OAMRAM + 4], a	; y
+	ld [_OAMRAM + OAMA_Y], a	; y of left half of sprite
+	ld [_OAMRAM + 4 + OAMA_Y], a; y of right half
 ; sprite ids
 	ld hl, player_dir		; determine which direction the player is facing
 	ld a, [hl+]				; hl = player_frame (used to calculate which animation frame we're on)
@@ -80,9 +97,9 @@ draw_player:
 	 jr z, .update_id
 		add a, 4			; skip to second frame: 4 sprites per animation frame
 .update_id:
-	ld [_OAMRAM + 2], a		; left tile id - player sprite is 2 8x16 sprites side by side
-	add a, 2				; right side of sprite begins two 8x8 sprites after left side
-	ld [_OAMRAM + 6], a		; right tile id
+	ld [_OAMRAM + OAMA_TILEID], a	; left tile id - player sprite is 2 8x16 sprites side by side
+	add a, 2						; right side of sprite begins two 8x8 sprites after left side
+	ld [_OAMRAM + 4 + OAMA_TILEID], a; right tile id
 	ret
 
 
@@ -108,7 +125,7 @@ move_right:
 	ld [player_dir], a
 	ld hl, player_x + 1	; first check if we're at the edge of the map
 	ld a, [map_w]		; MSB of player_x holds the tile position
-	sub WIDTH_T			;
+	dec a				; We don't want player to go past the end of the map (or do we?)
 	cp [hl]				; check if it equals map width
 	 ret z
 ; update x position
@@ -142,7 +159,6 @@ move_down:
 	ld [player_dir], a
 	ld hl, player_y + 1	; MSB of player_y (aligned tile position)
 	ld a, [map_h]		; check if at the bottom of the map
-	sub HEIGHT_T		; adjust a so that we can compare it to the map y tile position
 	cp [hl]				; player_y == player_h - num_rows
 	 ret z				; quit if we're at the bottom
 ; update y position
