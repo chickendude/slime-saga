@@ -1,14 +1,22 @@
 ; Sorry for the tabs, old habit.
 ; -chickendude, 2023
 
+; Tiles drawn to 8800
+; Sprites drawn to 8000
+
 include "inc/hardware.inc"
 
 def HEIGHT_T	equ 9
 def WIDTH_T		equ 10
-def SPEED		equ 64 ; 2 pixels per frame - NOTE: must be < 1 tile
+def SPEED		equ 8 ; 1 pixel per frame - NOTE: must be < 1 tile
 
 ; high RAM: ~126 bytes from $FF80 - $FFFE
 def map_w_extra	equ _HRAM ; how much to add to move down a row in the map
+
+def UP			equ 0
+def DOWN		equ 1
+def RIGHT		equ 2
+def LEFT		equ 3
 
 
 ; RAM: ~8000 bytes from $C000 - $DFFF
@@ -17,10 +25,12 @@ START_OF_VARIABLES:
 tilemap_buffer: DS 22 * 20
 map_w: DS 1
 map_h: DS 1
-map_x: DS 2		; 12.4 fixed point
-map_y: DS 2		; 12.4 fixed point
-player_x: DS 2	; 12.4 fixed point
-player_y: DS 2	; 12.4 fixed point
+map_x: DS 2			; 12.4 fixed point
+map_y: DS 2			; 12.4 fixed point
+player_dir: DS 1	; 0 = U, 1 = D, 2 = R, 3 = L
+player_frame: DS 1	; keeps track of walking frame
+player_x: DS 2		; 12.4 fixed point
+player_y: DS 2		; 12.4 fixed point
 END_OF_VARIABLES:
 
 
@@ -40,7 +50,9 @@ start:
 	ld [rLCDC], a		; disable LCD
 
 	ld a, %11100100 	; light to dark
-	ld [rBGP], a		; update palette
+	ld [rBGP], a		; update background/tile palette
+	ld [rOBP0], a		; update sprite palette
+	ld [rOBP1], a		; update sprite palette
 
 ; set up RAM variables
 	ld hl, map_w
@@ -52,9 +64,18 @@ start:
 	bit 7, b
 	 jr z, .reset
 
+; reset OAM
+	ld c, OAM_COUNT * 4		; 40 OAM entries
+	ld hl, _OAMRAM + OAMA_Y
+	xor a				; set a to zero
+.init_oam:
+	ld [hl+], a			; set OAM Y to 0
+	dec c				; run 40 times altogether
+	 jr nz, .init_oam
+
 ; load tile data into VRAM
 	ld de, tile_data
-	ld hl, _VRAM8000
+	ld hl, _VRAM8800
 	ld b, 16
 .loop:
 	ld a, [de]
@@ -69,9 +90,10 @@ start:
 	cp e
 	 jr nz, .loop
 
+	call load_player_sprites
 	call load_tilemap
 
-	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_BG8000
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_BG8800 | LCDCF_OBJON | LCDCF_OBJ16
 	ld [rLCDC], a
 
 main:
@@ -81,12 +103,19 @@ main:
 	 jr nz, .vblank
 	
 	call update_camera		; [camera.asm]
+	call draw_player		; [player.asm]
 
 	ld a, P1F_GET_DPAD		; prepare to read DPAD from key port
 	ld [rP1], a				; send request to read DPAD status
 	ldh a, [rP1]			; wait state
 	ldh a, [rP1]			; DPAD status in a
 
+	ld hl, player_frame
+	cp $EF
+	 jr nz, .check_keys
+		ld [hl], a
+.check_keys:
+	inc [hl]				; increase player animation counter
 	swap a
 	push af
 		and PADF_UP			;
@@ -100,10 +129,8 @@ main:
 		and PADF_LEFT		;
 		 call z, move_left	; [tilemap.asm]
 	pop af
-	push af
-		and PADF_RIGHT		;
-		 call z, move_right	; [tilemap.asm]
-	pop af
+	and PADF_RIGHT		;
+	 call z, move_right	; [tilemap.asm]
 
 	ld a, P1F_GET_NONE		; disable key polling
 	ld [rP1], a				;
@@ -112,6 +139,8 @@ main:
 ; ### CODE ###
 
 include "camera.asm"
+include "math.asm"
+include "player.asm"
 include "tilemap.asm"
 
 ; ### DATA ###
@@ -119,6 +148,10 @@ include "tilemap.asm"
 tile_data:
 incbin "gfx/tiles.bin"
 tile_end:
+
+sprite_data:
+incbin "gfx/slime-girl.bin"
+sprite_end:
 
 tilemap:
 db 64, 64	; width, height
