@@ -159,6 +159,7 @@ move_down:
 	ld [player_dir], a
 	ld hl, player_y + 1	; MSB of player_y (aligned tile position)
 	ld a, [map_h]		; check if at the bottom of the map
+	dec a
 	cp [hl]				; player_y == player_h - num_rows
 	 ret z				; quit if we're at the bottom
 ; update y position
