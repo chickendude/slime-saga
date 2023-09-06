@@ -111,8 +111,17 @@ move_left:
 	and $F0				; clear out subpixel offset (12.4 fixed point)
 	or [hl]				; check if both the tile and pixel offset are zero
 	 ret z				; .. if so, can't move left any further
+; check if tile is passable
+	ld a, [hl-]			; determine player's target x tile
+	ld l, [hl]
+	ld h, a
+	ld bc, 16 * 2 - SPEED
+	add hl, bc
+	ld a, h
+	call check_collision_horiz	; [tilemap.asm] a = x
+	 ret nz
 ; update x position
-	dec hl				; LSB of player_w
+	ld hl, player_x
 	ld a, [hl]			; subtract walking speed from player_x
 	sub a, SPEED		; 
 	ld [hl+], a
@@ -128,8 +137,17 @@ move_right:
 	dec a				; We don't want player to go past the end of the map (or do we?)
 	cp [hl]				; check if it equals map width
 	 ret z
+; check if tile is passable
+	ld a, [hl-]			; determine player's target x tile
+	ld l, [hl]
+	ld h, a
+	ld bc, 16 * 14 + SPEED
+	add hl, bc
+	ld a, h
+	call check_collision_horiz	; [tilemap.asm] a = x
+	 ret nz
 ; update x position
-	dec hl				; LSB of player_w
+	ld hl, player_x
 	ld a, [hl]			; increase player_x by one, making sure to carry over
 	add a, SPEED		; 
 	ld [hl+], a

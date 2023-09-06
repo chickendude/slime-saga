@@ -33,6 +33,9 @@ player_x: DS 2		; 12.4 fixed point
 player_y: DS 2		; 12.4 fixed point
 END_OF_VARIABLES:
 
+section "hvariables", hram
+storage: DS 1
+
 
 section "header", rom0[$0100]
 entrypoint:
@@ -63,6 +66,12 @@ start:
 	dec bc
 	bit 7, b
 	 jr z, .reset
+
+; set up player start position
+	ld a, 1
+	ld [player_x + 1], a
+	inc a
+	ld [player_y + 1], a
 
 ; reset OAM
 	ld c, OAM_COUNT * 4		; 40 OAM entries

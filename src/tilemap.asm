@@ -59,7 +59,7 @@ draw_column:
 	ld h, a
 	ld a, [map_y + 1]	; to find the starting y position of the tilemap, we need to
 	ld e, a				; .. multiply (y tile position * map width)
-	call mult_he
+	call mult_he		; [math.asm]
 	ld b, a				; save for later
 	ld a, c
 ; set de to start of tilemap data
@@ -262,3 +262,38 @@ draw_row:
 	dec c
 	 jr nz, .loop
 	ret
+
+; inputs:
+;	a = x
+;	e = y
+; outputs:
+;	z = passable, nz = not passable
+check_collision_horiz:
+	ldh [storage], a	; >>> save x position
+	ld a, [player_y + 1]; e = player's y tile position
+	ld e, a				;
+; calculate + add y offset
+	ld a, [map_w]		; multiply y by map width
+	ld c, a				; save map width
+	ld h, a				; h = map width
+	call mult_he		; [math.asm] hl = map width * y
+; add x offset
+	ldh a, [storage]	; <<< restore x position
+	ld e, a				; de = x position (d = 0 from mult_he)
+	add hl, de			; add x position to tilemap offset
+; find position in tilemap
+	ld de, tilemap + 2	; skip width/height bytes
+	add hl, de			; hl = tilemap + offset
+; check tile id(s)
+	ld a, [hl]			; check if tile = 0
+	or a				;
+	 ret nz				; if tile isn't zero, we're blocked
+	ld a, [player_y]	; otherwise, check if player's y position spans multiple tiles
+	and $F0				; clear out sub-pixel offset
+	 ret z				; if player is aligned to a tile, we don't need to check the tile below
+	ld b, 0				; bc = map width (we saved it into c above)
+	add hl, bc			; move down a row in the tilemap
+	ld a, [hl]			; tile id of bottom tile
+	or a				; check if the tile is passable
+	ret
+
