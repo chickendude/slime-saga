@@ -163,8 +163,17 @@ move_up:
 	and $F0				; clear out the subpixel offset
 	or [hl]				; if LSB and MSB both = 0, we're at the top
 	 ret z				; quit if so
+; check if tile is passable
+	ld a, [hl-]
+	ld l, [hl]
+	ld h, a
+	ld bc, 16 * 7
+	add hl, bc
+	ld e, h
+	call check_collision_vert
+	 ret nz
 ; update y position
-	dec hl				; hl = LSB of player_y
+	ld hl, player_y
 	ld a, [hl]			; subtract walking speed from player_y
 	sub a, SPEED		; 
 	ld [hl+], a			; save new position

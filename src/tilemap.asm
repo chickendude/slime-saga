@@ -265,13 +265,17 @@ draw_row:
 
 ; inputs:
 ;	a = x
-;	e = y
 ; outputs:
 ;	z = passable, nz = not passable
 check_collision_horiz:
 	ldh [storage], a	; >>> save x position
-	ld a, [player_y + 1]; e = player's y tile position
-	ld e, a				;
+	ld hl, player_y		; hl = [player_y]
+	ld a, [hl+]			;
+	ld h, [hl]			;
+	ld l, a				;
+	ld bc, 16 * 8		; to allow the player 8 pixels of overlap with tiles
+	add hl, bc			; 
+	ld e, h				; e = y tile position
 ; calculate + add y offset
 	ld a, [map_w]		; multiply y by map width
 	ld c, a				; save map width
@@ -291,9 +295,56 @@ check_collision_horiz:
 	ld a, [player_y]	; otherwise, check if player's y position spans multiple tiles
 	and $F0				; clear out sub-pixel offset
 	 ret z				; if player is aligned to a tile, we don't need to check the tile below
+	cp 16 * 8			; if 0 < player y < 8, we need to check the tile below
+	 jr c, .check_next_tile
+	xor a				; set z flag if tile offset of player y > 8 and quit
+	ret					;
+.check_next_tile:
 	ld b, 0				; bc = map width (we saved it into c above)
 	add hl, bc			; move down a row in the tilemap
 	ld a, [hl]			; tile id of bottom tile
 	or a				; check if the tile is passable
-	ret
+	ret					;
+
+; inputs:
+;	a = x
+;	e = y
+; outputs:
+;	z = passable, nz = not passable
+check_collision_vert:
+	ld hl, player_x
+	ld a, [hl+]
+	ld h, [hl]
+	ld l, a
+	ld bc, 16 * 2
+	add hl, bc
+	ld a, h
+	ldh [storage], a
+; add y offset
+	ld a, [map_w]		; multiply y by map width
+	ld h, a				; h = map width
+	call mult_he		; [math.asm] hl = map width * y
+; add x offset
+	ldh a, [storage]
+	ld e, a				; de = x position (d = 0 from mult_he)
+	add hl, de			; add x position to tilemap offset
+; find position in tilemap
+	ld de, tilemap + 2	; skip width/height bytes
+	add hl, de			; hl = tilemap + offset
+; check tile id(s)
+	ld a, [hl]			; check if tile = 0
+	or a				;
+	 ret nz				; if tile isn't zero, we're blocked
+	ld a, [player_x]	; otherwise, check if player's y position spans multiple tiles
+	and $F0				; clear out sub-pixel offset
+	 ret z				; if player is aligned to a tile, we don't need to check the tile below
+	cp 16 * 1			; if 0 < player y < 8, we need to check the tile below
+	 jr c, .check_next_tile
+	xor a				; set z flag if tile offset of player y > 8 and quit
+	ret					;
+.check_next_tile:
+	inc hl
+	ld a, [hl]			; tile id of bottom tile
+	or a				; check if the tile is passable
+	ret					;
 
